@@ -1,0 +1,65 @@
+name: Build & Run (multi-ubuntu)
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    # ubuntu-latest is 26.04; keep the three versions distinct, no duplicates.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-22.04, ubuntu-24.04, ubuntu-latest ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf automake autotools-dev libtool gettext \
+            make patch texinfo
+
+      - name: Build and run every example
+        run: |
+          set -e
+
+          build_one () {
+            local d="$1"
+            echo "================ Building $d ================"
+            ( cd "$d"
+              if [ "$d" = "hello-c-nognulib" ]; then
+                ./autogen.sh
+              else
+                ./autogen.sh --skip-gnulib
+              fi
+              ./configure
+              make
+              # Run every built 'hello' executable to verify it works.
+              for b in $(find . -type f -name hello -perm -u+x); do
+                echo "---- run $b ----"
+                "$b"
+              done
+              # Run the test suite where one is provided.
+              if grep -qx 'check:' Makefile 2>/dev/null; then
+                make check
+              fi
+            )
+          }
+
+          for d in \
+            hello-c-gnulib \
+            hello-c-gnulib-automakesubdir \
+            hello-c-gnulib-automakesubdir-withtests \
+            hello-c-gnulib-conddeps \
+            hello-c-gnulib-nonrecursive \
+            hello-c-nognulib ; do
+            build_one "$d"
+          done
