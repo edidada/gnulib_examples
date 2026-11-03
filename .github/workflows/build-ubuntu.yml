@@ -34,24 +34,12 @@ jobs:
           # The committed Gnulib sources were generated against a glibc that
           # provides __isoc23_sscanf (glibc >= 2.38). ubuntu-22.04 ships
           # glibc 2.35, which lacks that symbol, so the get_ppid_of module
-          # fails to link. Provide a small compatibility shim (implemented
-          # via vsscanf) and link it in. Newer Ubuntu already export the
-          # symbol, so this is skipped there.
+          # fails to link. Compile a small compatibility shim (delegating to
+          # vsscanf) and link it in. Newer Ubuntu already export the symbol,
+          # so this is skipped there.
           EXTRA_LDFLAGS=""
           if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
-            cat > /tmp/isoc23_sscanf_shim.c <<'EOF'
-#include <stdio.h>
-#include <stdarg.h>
-int __isoc23_sscanf(const char *s, const char *fmt, ...)
-{
-  va_list ap; int r;
-  va_start(ap, fmt);
-  r = vsscanf(s, fmt, ap);
-  va_end(ap);
-  return r;
-}
-EOF
-            gcc -c /tmp/isoc23_sscanf_shim.c -o /tmp/isoc23_sscanf_shim.o
+            gcc -c ci/isoc23_sscanf_shim.c -o /tmp/isoc23_sscanf_shim.o
             EXTRA_LDFLAGS="/tmp/isoc23_sscanf_shim.o"
           fi
 
