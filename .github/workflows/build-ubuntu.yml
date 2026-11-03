@@ -34,8 +34,8 @@ jobs:
           # The committed Gnulib sources were generated against a glibc that
           # provides __isoc23_sscanf (glibc >= 2.38). On ubuntu-22.04 (glibc
           # 2.35) that symbol is missing, so alias it back to sscanf at link
-          # time. Newer Ubuntu already export the symbol, so this is a no-op
-          # there and must NOT be applied (it would clash).
+          # time. Newer Ubuntu already export the symbol, so this must NOT be
+          # applied there (it would clash with the real one).
           EXTRA_LDFLAGS=""
           if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
             EXTRA_LDFLAGS="-Wl,--defsym=__isoc23_sscanf=sscanf"
@@ -53,8 +53,10 @@ jobs:
               else
                 ./autogen.sh --skip-gnulib
               fi
-              ./configure LDFLAGS="$EXTRA_LDFLAGS"
-              make
+              ./configure
+              # Apply the optional link shim only at the final program link,
+              # not during configure's own compiler-probe link tests.
+              make LDFLAGS="$EXTRA_LDFLAGS"
               # Run every built 'hello' executable to verify it works.
               for b in $(find . -type f -name hello -perm -u+x); do
                 echo "---- run $b ----"
@@ -62,7 +64,7 @@ jobs:
               done
               # Run the test suite where one is provided.
               if grep -qx 'check:' Makefile 2>/dev/null; then
-                make check
+                make check LDFLAGS="$EXTRA_LDFLAGS"
               fi
             )
           }
