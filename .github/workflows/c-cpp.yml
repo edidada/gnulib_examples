@@ -8,47 +8,51 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: script
-      run: |
-        sudo apt update
-        sudo apt install gnulib
-        gnulib-tool --version
-        cd hello-c-gnulib
-        export GNULIB_SRCDIR=/usr/share/gnulib
-        ./autogen.sh
-        ./configure
-        cd ../hello-c-gnulib-automakesubdir
-        ./autogen.sh
-        ./configure
-        cd ../hello-c-gnulib-automakesubdir-withtests
-        ./autogen.sh
-        ./configure
-        cd ../hello-c-gnulib-conddeps
-        ./autogen.sh
-        ./configure
-        cd ../hello-c-gnulib-nonrecursive
-        ./autogen.sh
-        ./configure
-        cd ../hello-c-nognulib
-        ./autogen.sh
-        ./configure
+      - uses: actions/checkout@v4
 
-    - name: make
-      run: |
-        cd hello-c-gnulib
-        make
-        cd ../hello-c-gnulib-automakesubdir
-        make
-        cd ../hello-c-gnulib-automakesubdir-withtests
-        make
-        cd ../hello-c-gnulib-conddeps
-        make
-        cd ../hello-c-gnulib-nonrecursive
-        make
-        cd ../hello-c-nognulib
-        make
+      - name: Install build tools and gnulib
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf automake autotools-dev libtool gettext \
+            make patch texinfo gnulib
+
+      - name: Regenerate from system gnulib, build, run and test every example
+        run: |
+          set -e
+          export GNULIB_SRCDIR=/usr/share/gnulib
+
+          build_one () {
+            local d="$1"
+            echo "================ Building $d ================"
+            ( cd "$d"
+              # hello-c-nognulib has no committed build-aux; automake -a -c
+              # requires the auxiliary directory to exist.
+              mkdir -p build-aux
+              ./autogen.sh
+              ./configure
+              make
+              # Run every built 'hello' executable to verify it works.
+              for b in $(find . -type f -name hello -perm -u+x); do
+                echo "---- run $b ----"
+                "$b"
+              done
+              # Run the test suite where one is provided.
+              if grep -qx 'check:' Makefile 2>/dev/null; then
+                make check
+              fi
+            )
+          }
+
+          for d in \
+            hello-c-gnulib \
+            hello-c-gnulib-automakesubdir \
+            hello-c-gnulib-automakesubdir-withtests \
+            hello-c-gnulib-conddeps \
+            hello-c-gnulib-nonrecursive \
+            hello-c-nognulib ; do
+            build_one "$d"
+          done
