@@ -32,13 +32,27 @@ jobs:
           set -e
 
           # The committed Gnulib sources were generated against a glibc that
-          # provides __isoc23_sscanf (glibc >= 2.38). On ubuntu-22.04 (glibc
-          # 2.35) that symbol is missing, so alias it back to sscanf at link
-          # time. Newer Ubuntu already export the symbol, so this must NOT be
-          # applied there (it would clash with the real one).
+          # provides __isoc23_sscanf (glibc >= 2.38). ubuntu-22.04 ships
+          # glibc 2.35, which lacks that symbol, so the get_ppid_of module
+          # fails to link. Provide a small compatibility shim (implemented
+          # via vsscanf) and link it in. Newer Ubuntu already export the
+          # symbol, so this is skipped there.
           EXTRA_LDFLAGS=""
           if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
-            EXTRA_LDFLAGS="-Wl,--defsym=__isoc23_sscanf=sscanf"
+            cat > /tmp/isoc23_sscanf_shim.c <<'EOF'
+#include <stdio.h>
+#include <stdarg.h>
+int __isoc23_sscanf(const char *s, const char *fmt, ...)
+{
+  va_list ap; int r;
+  va_start(ap, fmt);
+  r = vsscanf(s, fmt, ap);
+  va_end(ap);
+  return r;
+}
+EOF
+            gcc -c /tmp/isoc23_sscanf_shim.c -o /tmp/isoc23_sscanf_shim.o
+            EXTRA_LDFLAGS="/tmp/isoc23_sscanf_shim.o"
           fi
 
           build_one () {
@@ -54,8 +68,6 @@ jobs:
                 ./autogen.sh --skip-gnulib
               fi
               ./configure
-              # Apply the optional link shim only at the final program link,
-              # not during configure's own compiler-probe link tests.
               make LDFLAGS="$EXTRA_LDFLAGS"
               # Run every built 'hello' executable to verify it works.
               for b in $(find . -type f -name hello -perm -u+x); do
