@@ -1,5 +1,11 @@
 project('hello-c-gnulib-automakesubdir', 'c', version: '0', default_options: ['c_std=c11'])
 
+config_h = meson.source_root() / 'config.h'
+
+if not meson.exists(config_h)
+    error('config.h not found. Run autogen.sh first to generate gnulib files, or use hello-c-nognulib example.')
+endif
+
 gnulib_inc = include_directories('.')
 
 gnulib_sources = []

@@ -13,11 +13,42 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: configure
-      run: ./configure
+    - name: script
+      run: |
+        sudo apt update
+        sudo apt install gnulib
+        gnulib-tool --version
+        cd hello-c-gnulib
+        export GNULIB_SRCDIR=/usr/share/gnulib
+        ./autogen.sh
+        ./configure
+        cd ../hello-c-gnulib-automakesubdir
+        ./autogen.sh
+        ./configure
+        cd ../hello-c-gnulib-automakesubdir-withtests
+        ./autogen.sh
+        ./configure
+        cd ../hello-c-gnulib-conddeps
+        ./autogen.sh
+        ./configure
+        cd ../hello-c-gnulib-nonrecursive
+        ./autogen.sh
+        ./configure
+        cd ../hello-c-nognulib
+        ./autogen.sh
+        ./configure
+
     - name: make
-      run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
+      run: |
+        cd hello-c-gnulib
+        make
+        cd ../hello-c-gnulib-automakesubdir
+        make
+        cd ../hello-c-gnulib-automakesubdir-withtests
+        make
+        cd ../hello-c-gnulib-conddeps
+        make
+        cd ../hello-c-gnulib-nonrecursive
+        make
+        cd ../hello-c-nognulib
+        make

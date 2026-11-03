@@ -6,16 +6,22 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${CMAKE_SOURCE_DIR} -I${CMAKE_BINARY_DIR}")
 
-file(GLOB GNULIB_SOURCES "${CMAKE_SOURCE_DIR}/lib/*.c")
+find_file(CONFIG_H "config.h" PATHS ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} NO_CACHE)
 
-if(NOT GNULIB_SOURCES)
-    message(WARNING "Gnulib sources not found. Run autogen.sh first to generate gnulib files.")
-endif()
-
-add_executable(hello_c_gnulib_conddeps hello.c)
-
-if(GNULIB_SOURCES)
-    add_library(gnulib STATIC ${GNULIB_SOURCES})
-    target_include_directories(gnulib PUBLIC ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
-    target_link_libraries(hello PRIVATE gnulib)
+if(CONFIG_H)
+    file(GLOB GNULIB_SOURCES "${CMAKE_SOURCE_DIR}/lib/*.c")
+    
+    if(NOT GNULIB_SOURCES)
+        message(WARNING "Gnulib sources not found. Run autogen.sh first.")
+    endif()
+    
+    add_executable(hello hello.c)
+    
+    if(GNULIB_SOURCES)
+        add_library(gnulib STATIC ${GNULIB_SOURCES})
+        target_include_directories(gnulib PUBLIC ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
+        target_link_libraries(hello PRIVATE gnulib)
+    endif()
+else()
+    message(FATAL_ERROR "config.h not found. Run autogen.sh first to generate gnulib files, or use hello-c-nognulib example.")
 endif()
